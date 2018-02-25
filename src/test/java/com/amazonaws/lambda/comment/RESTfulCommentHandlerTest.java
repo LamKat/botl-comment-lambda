@@ -6,6 +6,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.amazonaws.lambda.comment.data.Request;
 import com.amazonaws.services.lambda.runtime.Context;
 
 /**
@@ -13,12 +14,16 @@ import com.amazonaws.services.lambda.runtime.Context;
  */
 public class RESTfulCommentHandlerTest {
 
-    private static Object input;
+    private static Request input;
 
     @BeforeClass
     public static void createInput() throws IOException {
         // TODO: set up your sample input object here.
-        input = null;
+        input = new Request();
+        input.setApplication("app");
+        input.setComment("comment");
+        input.setEmail("email");
+        input.setName("name");
     }
 
     private Context createContext() {
