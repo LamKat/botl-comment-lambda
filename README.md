@@ -28,13 +28,16 @@ Lambda function to hold add comment code for botl project
 - In the POST request method execution screen, select the **Intergration Request** menu
   - Body Mapping Templates > When there are no templates defined (recommended)
   - add mapping template 
-  - use **application/json**
+  - use **application/x-www-form-urlencoded**
 ```javascript
-{ 
-    "comment" : "$input.params('comment')",
-    "application" : "$input.params('application')",
-    "name" : "$input.params('name')",
-    "email" : "$input.params('email')"
+~~{~~
+~~    "comment" : "$input.params('comment')",~~
+~~    "application" : "$input.params('application')",~~
+~~    "name" : "$input.params('name')",~~
+~~    "email" : "$input.params('email')"~~
+~~}~~
+{
+    "body": "$input.body"
 }
 ```
 

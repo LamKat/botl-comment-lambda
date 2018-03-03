@@ -1,34 +1,35 @@
 package com.amazonaws.lambda.comment.data;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class Request {
-	private String comment;
-	private String application;
-	private String name;
-	private String email;
-	
-	public String getComment() {
-		return comment;
+
+	@JsonProperty("body")
+	private String body;
+
+	@JsonProperty("body")
+	public String getBody() {
+		return body;
 	}
-	public  void setComment(String comment) {
-		this.comment = comment;
+	@JsonProperty("body")
+	public  void setBody(String body) {
+		this.body = body;
 	}
-	public String getApplication() {
-		return application;
+
+	public EscapedRequest parse() {
+	    Map<String, String> params = new HashMap<String, String>();
+	    for (String param : body.split("&")) {
+	    	String[] keyPair = param.split("=");
+	        String key = keyPair[0];
+	        String value = keyPair[1];
+	        params.put(key, value);
+	    }
+	    
+		return new EscapedRequest(params);
 	}
-	public void setApplication(String application) {
-		this.application = application;
-	}
-	public String getName() {
-		return name;
-	}
-	public void setName(String name) {
-		this.name = name;
-	}
-	public String getEmail() {
-		return email;
-	}
-	public void setEmail(String email) {
-		this.email = email;
-	}
-	
 }
