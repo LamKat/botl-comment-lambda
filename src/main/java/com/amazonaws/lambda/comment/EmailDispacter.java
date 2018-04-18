@@ -1,6 +1,8 @@
 package com.amazonaws.lambda.comment;
 
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -19,39 +21,65 @@ public class EmailDispacter {
 	private static String USER = System.getenv("FROM_EMAIL_USER");
 	private static String PASSWORD = System.getenv("FROM_EMAIL_PASSWORD");
 	
+	private Message msg;
+	private Session session;
 	
-	
-	
-	public static void dispatch(String[] recips) throws MessagingException {
-		InternetAddress[] recipients = new InternetAddress[recips.length];
-		for(int i = 0; i < recips.length; i++) {
-			recipients[i] = new InternetAddress(recips[i]);
-		}
-		
+	public EmailDispacter() throws MessagingException {
 		Properties properties = System.getProperties();
 		properties.setProperty("mail.smtp.host", HOST);
 		properties.setProperty("mail.smtps.auth","true");
-		Session session = Session.getDefaultInstance(properties);
+		session = Session.getDefaultInstance(properties);
 		
 		
-		// Create a default MimeMessage object.
-		Message message = new MimeMessage(session);
+		msg = new MimeMessage(session);
 		
-		message.setFrom(new InternetAddress(FROM));
-		message.addRecipients(Message.RecipientType.BCC, recipients);
+		msg.setFrom(new InternetAddress(FROM));
+	}
+	
+	public void setRecipients(List<String> emails) throws MessagingException {
+		InternetAddress[] recipients = new InternetAddress[emails.size()];
+		int i = 0;
+		for(String email: emails) {
+			recipients[i++] = new InternetAddress(email);
+		}
+		
+		msg.addRecipients(Message.RecipientType.BCC, recipients);
+	}
+	
+	public void buildMessage(
+			String refrence, String address, String description, String url, List<CommentPOJO> comments) 
+					throws MessagingException {
 		
 		
+		msg.setSubject(String.format("BOTL Project: New comment for %s", refrence));
 		
-		message.setSubject("This is the Subject Line!");
-		message.setContent("<h1>This is actual message</h1>", "text/html");
-
+		String commentsHTML = comments.stream()
+				.map(c -> {
+						return String.format("<tr><td>%s</td><td>%s</td></tr>", c.getName(), c.getComment());
+					})
+				.collect(Collectors.joining());
+		
+		String messageHTML = String.format(
+				  "<p>%s</p>"
+				+ "<p>%s</p>"
+				+ "<p><a href=\"%s\">View on LPA website</a></p>"
+				+ "<table cellpadding=\"0\" cellspacing=\"0\" width=\"100%%\">"
+					+ "<tr>"
+						+ "<th>Name</th><th>Comment</th>"
+					+ "</tr>"
+					+ "%s"
+				+ "</table>", address, description, url.replace("&", "&amp;"), commentsHTML);
+		
+		msg.setContent(messageHTML, "text/html");
+	}
+	
+	public void dispatch() throws MessagingException {
+		
 		
 		SMTPTransport t = (SMTPTransport)session.getTransport("smtps");
         t.connect(HOST, USER, PASSWORD);
-        t.sendMessage(message, message.getAllRecipients());
+        t.sendMessage(msg, msg.getAllRecipients());
         System.out.println("Response: " + t.getLastServerResponse());
         t.close();
-		
-
 	}
 }

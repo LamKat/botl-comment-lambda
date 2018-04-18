@@ -1,11 +1,15 @@
 package com.amazonaws.lambda.comment;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Arrays;
+import java.util.List;
+
 import javax.mail.MessagingException;
 
 import com.amazonaws.lambda.comment.data.EscapedRequest;
@@ -14,6 +18,8 @@ import com.amazonaws.lambda.comment.data.Response;
 import com.amazonaws.lambda.comment.data.SuccessResponce;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class RESTfulCommentHandler implements RequestHandler<Request, Response> {
 	private static String password = System.getenv("BOTL_DATABASE_PASSWORD");
@@ -23,7 +29,7 @@ public class RESTfulCommentHandler implements RequestHandler<Request, Response> 
 	final static String INSERT_QUERY = "INSERT INTO comments (ApplicationFK, Comment, Name, Email) VALUES (?, ?, ?, ?)";
 	final static String GET_WATCHERS_QUERY = "SELECT Refrence, Address, Description, URL, "
 			+ "CONCAT('[', GROUP_CONCAT(CONCAT('{\"Name\": \"', comm.Name, '\", \"Comment\": \"', comm.Comment, '\"}') SEPARATOR ', '), ']') as Comments, "
-			+ "GROUP_CONCAT(comm.Email Separator ';') as Emails "
+			+ "GROUP_CONCAT(DISTINCT(comm.Email) COLLATE latin1_bin Separator ';') as Emails "
 			+ "FROM applications LEFT JOIN comments comm ON ApplicationID = comm.ApplicationFK "
 			+ "WHERE ApplicationID = ?; ";
 	
@@ -39,15 +45,15 @@ public class RESTfulCommentHandler implements RequestHandler<Request, Response> 
 					username, 
 					password);
 	    	conn.setCatalog("botl");
-	    	
-			int watchers = updateWatchers(req, conn);
-	        context.getLogger().log("INFO: number of watchers is " + watchers + "\n");
 			
 			writeToDatabase(req, conn);
 			
+			int watchers = updateWatchers(req, conn);
+	        context.getLogger().log("INFO: number of watchers is " + watchers + "\n");
 			
 			
-		} catch (SQLException | MessagingException e) {
+			
+		} catch (IOException |SQLException | MessagingException e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
@@ -71,7 +77,7 @@ public class RESTfulCommentHandler implements RequestHandler<Request, Response> 
 
 
 
-	private int updateWatchers(EscapedRequest req, Connection conn) throws SQLException, MessagingException {
+	private int updateWatchers(EscapedRequest req, Connection conn) throws SQLException, MessagingException, IOException {
 		PreparedStatement ps = conn.prepareStatement(GET_WATCHERS_QUERY);
 		ps.setInt(1, req.getApplication());
 		ResultSet rs = ps.executeQuery();
@@ -80,11 +86,24 @@ public class RESTfulCommentHandler implements RequestHandler<Request, Response> 
 		if(emailsString == null) {
 			return 0;
 		}
-		String[] emails = emailsString.split(";");
-		EmailDispacter.dispatch(emails);
+		List<String> emails = Arrays.asList(emailsString.split(";"));
+		if(req.hasEmail())
+			emails.remove(req.getEmailString());
 		
+		ObjectMapper mapper = new ObjectMapper();
+		List<CommentPOJO> comments = mapper.readValue(rs.getString("Comments"), new TypeReference<List<CommentPOJO>>(){});
 		
-		return emails.length;
+		String refrence = rs.getString("Refrence");
+		String address = rs.getString("Address");
+		String description = rs.getString("Description");
+		String url = rs.getString("URL");
+		
+		EmailDispacter disp = new EmailDispacter();
+		disp.setRecipients(emails);
+
+		disp.buildMessage(refrence, address, description, url, comments);
+		disp.dispatch();
+		return emails.size();
 	}
 	
 }

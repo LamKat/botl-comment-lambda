@@ -30,7 +30,8 @@ public class EscapedRequest {
 				.map(this::urlDecode)
 				.map(Encode::forHtmlAttribute)
 				.map(NEWLINE_ENCODE)
-				.orElseThrow(() -> new IllegalArgumentException("Missing comment"));
+				.filter(s -> s.length() < 200) //To fit into varchar(200)
+				.orElseThrow(() -> new IllegalArgumentException("Invalid or missing comment"));
 		
 		this.application = opParams.map(GET_APPLICATION)
 				.map(Integer::parseInt)
@@ -40,7 +41,8 @@ public class EscapedRequest {
 				.map(this::urlDecode)
 				.map(Encode::forHtmlAttribute)
 				.map(NEWLINE_ENCODE)
-				.orElseThrow(() -> new IllegalArgumentException("Missing name"));
+				.filter(s -> s.length() < 100) //To fit into varchar(100)
+				.orElseThrow(() -> new IllegalArgumentException("Invalid or missing name"));
 		
 		this.email = opParams.map(GET_EMAIL)
 				.map(this::urlDecode)
